@@ -759,6 +759,72 @@ const TypeFunc* OptoRuntime::generic_arraycopy_Type() {
   return make_arraycopy_Type(ac_generic);
 }
 
+const TypeFunc* OptoRuntime::qbaAllocate0_Type() {
+  const Type** fields;
+  int argp = TypeFunc::Parms;
+
+  // create input type (domain): long
+  fields = TypeTuple::fields(4);
+  fields[argp++] = TypeLong::LONG; // qba
+  fields[argp++] = Type::HALF;
+  fields[argp++] = TypeLong::LONG; // size
+  fields[argp++] = Type::HALF;
+  const TypeTuple *domain = TypeTuple::make(argp, fields);
+
+  // create result type: long
+  fields = TypeTuple::fields(2);
+  argp = TypeFunc::Parms;
+  fields[argp++] = TypeLong::LONG; // address
+  fields[argp++] = Type::HALF;
+  const TypeTuple *range = TypeTuple::make(argp, fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+const TypeFunc* OptoRuntime::qbaReallocate0_Type() {
+  const Type** fields;
+  int argp = TypeFunc::Parms;
+
+  // create input type (domain): long, long
+  fields = TypeTuple::fields(6);
+  fields[argp++] = TypeLong::LONG; // qba
+  fields[argp++] = Type::HALF;
+  fields[argp++] = TypeLong::LONG; // old address
+  fields[argp++] = Type::HALF;
+  fields[argp++] = TypeLong::LONG; // size
+  fields[argp++] = Type::HALF;
+  const TypeTuple *domain = TypeTuple::make(argp, fields);
+
+  // create result type: long
+  fields = TypeTuple::fields(2);
+  argp = TypeFunc::Parms;
+  fields[argp++] = TypeLong::LONG; // new address
+  fields[argp++] = Type::HALF;
+  const TypeTuple *range = TypeTuple::make(argp, fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+const TypeFunc* OptoRuntime::qbaDeallocate0_Type() {
+  const Type** fields;
+  int argp = TypeFunc::Parms;
+
+  // create input type (domain): long
+  fields = TypeTuple::fields(4);
+  fields[argp++] = TypeLong::LONG; // qba
+  fields[argp++] = Type::HALF;
+  fields[argp++] = TypeLong::LONG; // address
+  fields[argp++] = Type::HALF;
+  const TypeTuple *domain = TypeTuple::make(argp, fields);
+
+  // create result type: void
+  fields = TypeTuple::fields(1);
+  argp = TypeFunc::Parms;
+  fields[argp] = NULL; // void
+  const TypeTuple *range = TypeTuple::make(argp, fields);
+
+  return TypeFunc::make(domain, range);
+}
 
 const TypeFunc* OptoRuntime::array_fill_Type() {
   const Type** fields;

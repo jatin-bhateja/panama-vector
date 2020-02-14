@@ -768,6 +768,7 @@
   do_signature(float3_float_signature,    "(FFF)F")                                                                     \
   do_signature(int2_int_signature,        "(II)I")                                                                      \
   do_signature(long2_long_signature,      "(JJ)J")                                                                      \
+  do_signature(long3_long_signature,      "(JJJ)J")                                                                     \
                                                                                                                         \
   /* here are the math names, all together: */                                                                          \
   do_name(abs_name,"abs")       do_name(sin_name,"sin")         do_name(cos_name,"cos")                                 \
@@ -1133,6 +1134,18 @@
   do_intrinsic(_fullFence,                jdk_internal_misc_Unsafe,     fullFence_name, fullFence_signature,           F_RN)     \
    do_name(     fullFence_name,                                         "fullFence")                                             \
    do_alias(    fullFence_signature,                                    void_method_signature)                                   \
+                                                                                                                        \
+  /* support for QBA */                                                                                                 \
+  do_class(jdk_internal_misc_QBA,               "jdk/internal/misc/QBA")                                                \
+  do_intrinsic(_qbaAllocate0,              jdk_internal_misc_QBA, qbaAllocate0_name, qbaAllocate0_signature,     F_SN)  \
+   do_name(     qbaAllocate0_name,                                  "allocate0")                                        \
+   do_alias(    qbaAllocate0_signature,                             long2_long_signature)                               \
+  do_intrinsic(_qbaReallocate0,            jdk_internal_misc_QBA, qbaReallocate0_name, qbaReallocate0_signature, F_SN)  \
+   do_name(     qbaReallocate0_name,                                "reallocate0")                                      \
+   do_alias(    qbaReallocate0_signature,                           long3_long_signature)                               \
+  do_intrinsic(_qbaDeallocate0,            jdk_internal_misc_QBA, qbaDeallocate0_name, qbaDeallocate0_signature, F_SN)  \
+   do_name(     qbaDeallocate0_name,                               "deallocate0")                                       \
+   do_alias(    qbaDeallocate0_signature,                           long_long_void_signature)                           \
                                                                                                                         \
   /* Custom branch frequencies profiling support for JSR292 */                                                          \
   do_class(java_lang_invoke_MethodHandleImpl,               "java/lang/invoke/MethodHandleImpl")                        \
@@ -1535,7 +1548,7 @@ class vmSymbols: AllStatic {
     FIRST_SID = NO_SID + 1
   };
   enum {
-    log2_SID_LIMIT = 10         // checked by an assert at start-up
+    log2_SID_LIMIT = 11         // checked by an assert at start-up
   };
 
  private:

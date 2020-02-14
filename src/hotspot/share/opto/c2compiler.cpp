@@ -596,6 +596,9 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_copyOf:
   case vmIntrinsics::_copyOfRange:
   case vmIntrinsics::_clone:
+  case vmIntrinsics::_qbaAllocate0:
+  case vmIntrinsics::_qbaReallocate0:
+  case vmIntrinsics::_qbaDeallocate0:
   case vmIntrinsics::_isAssignableFrom:
   case vmIntrinsics::_isInstance:
   case vmIntrinsics::_getModifiers:

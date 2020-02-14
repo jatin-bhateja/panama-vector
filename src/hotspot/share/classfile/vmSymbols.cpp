@@ -779,6 +779,11 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_copyMemory:
     if (!InlineArrayCopy || !InlineUnsafeOps) return true;
     break;
+  case vmIntrinsics::_qbaAllocate0:
+  case vmIntrinsics::_qbaReallocate0:
+  case vmIntrinsics::_qbaDeallocate0:
+    if (!InlineUnsafeOps) return true;
+    break;
 #ifdef COMPILER1
   case vmIntrinsics::_checkIndex:
     if (!InlineNIOCheckIndex) return true;

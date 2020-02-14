@@ -29,6 +29,10 @@ $(eval $(call IncludeCustomExtension, hotspot/lib/JvmFeatures.gmk))
 # Setup CFLAGS and EXCLUDES for the libjvm compilation, depending on which
 # jvm features are selected for this jvm variant.
 
+# Temp to use C++11 atomics from QBA
+JVM_CFLAGS_FEATURES += -std=c++11
+
+
 ifeq ($(call check-jvm-feature, compiler1), true)
   JVM_CFLAGS_FEATURES += -DCOMPILER1
 else

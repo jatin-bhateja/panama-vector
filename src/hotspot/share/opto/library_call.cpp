@@ -257,6 +257,9 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
+  bool inline_qba_allocate0();
+  bool inline_qba_reallocate0();
+  bool inline_qba_deallocate0();
   bool inline_native_currentThread();
 
   bool inline_native_time_funcs(address method, const char* funcName);
@@ -765,6 +768,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_writebackPostSync0:       return inline_unsafe_writebackSync0(false);
   case vmIntrinsics::_allocateInstance:         return inline_unsafe_allocate();
   case vmIntrinsics::_copyMemory:               return inline_unsafe_copyMemory();
+  case vmIntrinsics::_qbaAllocate0:             return inline_qba_allocate0();
+  case vmIntrinsics::_qbaReallocate0:           return inline_qba_reallocate0();
+  case vmIntrinsics::_qbaDeallocate0:           return inline_qba_deallocate0();
   case vmIntrinsics::_getLength:                return inline_native_getLength();
   case vmIntrinsics::_copyOf:                   return inline_array_copyOf(false);
   case vmIntrinsics::_copyOfRange:              return inline_array_copyOf(true);
@@ -4188,6 +4194,70 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
   insert_mem_bar(Op_MemBarCPUOrder);
 
   return true;
+}
+
+//----------------------inline_qba_allocate0-------------------------
+// public native long QBA.allocate0(long size);
+bool LibraryCallKit::inline_qba_allocate0() {
+#define FN_PTR(f) CAST_FROM_FN_PTR(address, f)
+  const TypePtr* no_memory_effects = NULL;
+  Node* qba = argument(0);  // type: long
+  Node* size = argument(2);  // type: long
+
+  Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
+                                 OptoRuntime::qbaAllocate0_Type(),
+                                 FN_PTR(SharedRuntime::qbaAllocate0),
+                                 "qbaAllocate0",
+                                 no_memory_effects,
+                                 qba, top(), size, top());
+  Node* result = _gvn.transform(new ProjNode(call, TypeFunc::Parms+0));
+
+  set_result(result);
+
+  return true;
+#undef FN_PTR
+}
+
+//----------------------inline_qba_reallocate0-------------------------
+// public native long QBA.reallocate0(long address, long size);
+bool LibraryCallKit::inline_qba_reallocate0() {
+#define FN_PTR(f) CAST_FROM_FN_PTR(address, f)
+  const TypePtr* no_memory_effects = NULL;
+  Node* qba = argument(0);  // type: long
+  Node* addr = argument(2);  // type: long
+  Node* size = argument(4);  // type: long
+
+  Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
+                                 OptoRuntime::qbaReallocate0_Type(),
+                                 FN_PTR(SharedRuntime::qbaReallocate0),
+                                 "qbaReallocate0",
+                                 no_memory_effects,
+                                 qba, top(), addr, top(), size, top());
+  Node* result = _gvn.transform(new ProjNode(call, TypeFunc::Parms+0));
+
+  set_result(result);
+
+  return true;
+#undef FN_PTR
+}
+
+//----------------------inline_qba_deallocate0-------------------------
+// public native void QBA.deallocate0(long address);
+bool LibraryCallKit::inline_qba_deallocate0() {
+#define FN_PTR(f) CAST_FROM_FN_PTR(address, f)
+  const TypePtr* no_memory_effects = NULL;
+  Node* qba = argument(0);  // type: long
+  Node* addr = argument(2);  // type: long
+
+  Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
+                                 OptoRuntime::qbaDeallocate0_Type(),
+                                 FN_PTR(SharedRuntime::qbaDeallocate0),
+                                 "qbaDeallocate0",
+                                 no_memory_effects,
+                                 qba, top(), addr, top());
+
+  return true;
+#undef FN_PTR
 }
 
 //------------------------clone_coping-----------------------------------

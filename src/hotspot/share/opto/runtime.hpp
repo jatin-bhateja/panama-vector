@@ -271,6 +271,10 @@ private:
   static const TypeFunc* generic_arraycopy_Type();
   static const TypeFunc* slow_arraycopy_Type();   // the full routine
 
+  static const TypeFunc* qbaAllocate0_Type();
+  static const TypeFunc* qbaReallocate0_Type();
+  static const TypeFunc* qbaDeallocate0_Type();
+
   static const TypeFunc* array_fill_Type();
 
   static const TypeFunc* aescrypt_block_Type();

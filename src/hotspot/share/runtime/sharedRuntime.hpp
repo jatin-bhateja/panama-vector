@@ -514,6 +514,11 @@ class SharedRuntime: AllStatic {
                                oopDesc* dest, jint dest_pos,
                                jint length, JavaThread* thread);
 
+  // Native memory allocation runtime leafs for intrinsics
+  static jlong qbaAllocate0(jlong qba, jlong size);
+  static jlong qbaReallocate0(jlong qba, jlong addr, jlong size);
+  static void qbaDeallocate0(jlong qba, jlong addr);
+
   // handle ic miss with caller being compiled code
   // wrong method handling (inline cache misses, zombie methods)
   static address handle_wrong_method(JavaThread* thread);

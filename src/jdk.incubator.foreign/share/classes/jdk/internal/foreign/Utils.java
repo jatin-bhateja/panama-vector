@@ -33,6 +33,7 @@ import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.foreign.MemoryAddressProxy;
 import jdk.internal.access.foreign.UnmapperProxy;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.QBA;
 import sun.nio.ch.FileChannelImpl;
 import sun.security.action.GetBooleanAction;
 
@@ -57,6 +58,11 @@ public final class Utils {
 
     private static final MethodHandle ADDRESS_FILTER;
 
+    private static final boolean skipZeroMemory = GetBooleanAction.privilegedGetProperty("jdk.internal.foreign.skipZeroMemory");
+
+    private static final boolean useQBA = GetBooleanAction.privilegedGetProperty("jdk.internal.foreign.useQBA");
+    private static final QBA qba = useQBA ? QBA.create(!skipZeroMemory) : null;
+
     static {
         try {
             ADDRESS_FILTER = MethodHandles.lookup().findStatic(Utils.class, "filterAddress",
@@ -70,8 +76,6 @@ public final class Utils {
     private final static long MAX_ALIGN = 16;
 
     private static final JavaNioAccess javaNioAccess = SharedSecrets.getJavaNioAccess();
-
-    private static final boolean skipZeroMemory = GetBooleanAction.privilegedGetProperty("jdk.internal.foreign.skipZeroMemory");
 
     public static long alignUp(long n, long alignment) {
         return (n + alignment - 1) & -alignment;
@@ -88,24 +92,31 @@ public final class Utils {
     // segment factories
 
     public static MemorySegment makeNativeSegment(long bytesSize, long alignmentBytes) {
-        long alignedSize = bytesSize;
+        if (qba != null) {
+            long buf = qba.allocate(bytesSize);
+            MemoryScope scope = new MemoryScope(null, () -> qba.deallocate(buf));
+            MemorySegment segment = new MemorySegmentImpl(buf, null, bytesSize, 0, Thread.currentThread(), scope);
+            return segment;
+        } else {
+            long alignedSize = bytesSize;
 
-        if (alignmentBytes > MAX_ALIGN) {
-            alignedSize = bytesSize + (alignmentBytes - 1);
-        }
+            if (alignmentBytes > MAX_ALIGN) {
+                alignedSize = bytesSize + (alignmentBytes - 1);
+            }
 
-        long buf = unsafe.allocateMemory(alignedSize);
-        if (!skipZeroMemory) {
-            unsafe.setMemory(buf, alignedSize, (byte)0);
+            long buf = unsafe.allocateMemory(alignedSize);
+            if (!skipZeroMemory) {
+                unsafe.setMemory(buf, alignedSize, (byte)0);
+            }
+            long alignedBuf = Utils.alignUp(buf, alignmentBytes);
+            MemoryScope scope = new MemoryScope(null, () -> unsafe.freeMemory(buf));
+            MemorySegment segment = new MemorySegmentImpl(buf, null, alignedSize, 0, Thread.currentThread(), scope);
+            if (alignedBuf != buf) {
+                long delta = alignedBuf - buf;
+                segment = segment.asSlice(delta, bytesSize);
+            }
+            return segment;
         }
-        long alignedBuf = Utils.alignUp(buf, alignmentBytes);
-        MemoryScope scope = new MemoryScope(null, () -> unsafe.freeMemory(buf));
-        MemorySegment segment = new MemorySegmentImpl(buf, null, alignedSize, 0, Thread.currentThread(), scope);
-        if (alignedBuf != buf) {
-            long delta = alignedBuf - buf;
-            segment = segment.asSlice(delta, bytesSize);
-        }
-        return segment;
     }
 
     public static MemorySegment makeArraySegment(byte[] arr) {

@@ -54,6 +54,7 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
+#include "runtime/qba.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
@@ -2023,6 +2024,19 @@ char* SharedRuntime::generate_class_cast_message(
   return generate_class_cast_message(caster_klass, target_klass, target_klass_name);
 }
 
+// Native memory allocation runtime leafs for intrinsics
+
+JRT_LEAF(jlong, SharedRuntime::qbaAllocate0(jlong qba, jlong size))
+  return (jlong)qba_allocate((qba_t *)qba, size);
+JRT_END
+
+JRT_LEAF(jlong, SharedRuntime::qbaReallocate0(jlong qba, jlong addr, jlong size))
+  return (jlong)qba_reallocate((qba_t *)qba, (void *)addr, size);
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::qbaDeallocate0(jlong qba, jlong addr))
+  qba_deallocate((qba_t *)qba, (void *)addr);
+JRT_END
 
 // The caller of generate_class_cast_message() (or one of its callers)
 // must use a ResourceMark in order to correctly free the result.
