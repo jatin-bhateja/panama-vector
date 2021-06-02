@@ -1315,6 +1315,10 @@ static void generate_peepreplace( FILE *fp, FormDict &globals, PeepMatch *pmatch
           // Get bottom type from instruction whose result we are replacing
           fprintf(fp, "        root->_bottom_type = inst%d->bottom_type();\n", inst_num);
         }
+        if( root_form->captures_meta_data(globals) ) {
+          // get meta data from instruction whose result we are replacing
+          fprintf(fp, "        root->_meta_data = inst%d->meta_data();\n", inst_num);
+        }
         // Define result register and result operand
         fprintf(fp, "        ra_->add_reference(root, inst%d);\n", inst_num);
         fprintf(fp, "        ra_->set_oop (root, ra_->is_oop(inst%d));\n", inst_num);
@@ -3928,6 +3932,9 @@ void ArchDesc::buildMachNode(FILE *fp_cpp, InstructForm *inst, const char *inden
     if (strncmp("MachCall", inst->mach_base_class(_globalNames), strlen("MachCall"))) {
       fprintf(fp_cpp, "%s node->_bottom_type = _leaf->bottom_type();\n", indent);
     }
+  }
+  if(inst->captures_meta_data(_globalNames)) {
+    fprintf(fp_cpp, "%s node->_meta_data = _leaf->meta_data();\n", indent);
   }
   if( inst->is_ideal_if() ) {
     fprintf(fp_cpp, "%s node->_prob = _leaf->as_If()->_prob;\n", indent);

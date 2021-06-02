@@ -258,4 +258,97 @@ class SignumFNode : public Node {
   virtual uint ideal_reg() const { return Op_RegF; }
 };
 
+// Node corresponding to various operations of jdk.incubator.vector.VectorMask class.
+// Used during intrinsic creation of APIs defined in VectorMask.
+
+// TODO: Capture lane type and length, this will enable optimizing the shape of
+// VectorStoreMask node. TypeVect::VECTMASK represents a 64 bit boolean vector holding
+// entire opmask contents. VectorStoreMask dumps this value to a 64 byte ZMM which
+// has a frequency penalty associated with it. This can be avoided if all the mask bits
+// of opmask register were not used (only case where all the 64 bits are used is
+// 64 byte bytevector).
+class MaskOperNode : public Node {
+public:
+  enum OpKind {
+     MASK_FIRST_TRUE, MASK_LAST_TRUE, MASK_TRUE_COUNT, MASK_ANY_TRUE,
+     MASK_ALL_TRUE, MASK_NOT, MASK_OR, MASK_EQ, MASK_AND, MASK_ANDN
+  };
+
+  MaskOperNode(Node* n1, Node* n2, OpKind kind) : Node(0, n1, n2), _mask_opcode(kind) {}
+
+  virtual int Opcode() const;
+  virtual uint size_of() const { return sizeof(MaskOperNode); }
+  const int mask_Opcode() const { return _mask_opcode; }
+  void set_mask_Opcode(OpKind opkind) { _mask_opcode = opkind;}
+
+  uint num_operands() const {
+    switch(_mask_opcode) {
+      case MASK_FIRST_TRUE:
+      case MASK_LAST_TRUE:
+      case MASK_TRUE_COUNT:
+      case MASK_ALL_TRUE:
+      case MASK_ANY_TRUE:
+         return 1;
+      case MASK_EQ:
+      case MASK_NOT:
+      case MASK_OR:
+      case MASK_AND:
+      case MASK_ANDN:
+         return 2;
+      default:
+         ShouldNotReachHere();
+         return 0;
+    }
+  }
+
+  virtual const Type* bottom_type() const {
+    switch(_mask_opcode) {
+      case MASK_ALL_TRUE:
+      case MASK_ANY_TRUE:
+         return TypeInt::BOOL;
+      case MASK_FIRST_TRUE:
+      case MASK_LAST_TRUE:
+      case MASK_TRUE_COUNT:
+         return TypeInt::INT;
+      case MASK_EQ:
+      case MASK_NOT:
+      case MASK_OR:
+      case MASK_AND:
+      case MASK_ANDN:
+         return TypeVect::VECTMASK;
+      default:
+         ShouldNotReachHere();
+         return Type::TOP;
+    }
+  }
+
+  virtual uint match_edge(uint idx) const {
+    switch(_mask_opcode) {
+      case MASK_ALL_TRUE:
+      case MASK_ANY_TRUE:
+         return idx != 2;
+      case MASK_FIRST_TRUE:
+      case MASK_LAST_TRUE:
+      case MASK_TRUE_COUNT:
+      case MASK_EQ:
+      case MASK_NOT:
+      case MASK_OR:
+      case MASK_AND:
+      case MASK_ANDN:
+      default:
+         return true;
+    }
+  }
+
+  virtual uint ideal_reg() const {
+    return bottom_type()->ideal_reg();
+  }
+
+  static Node* make(PhaseGVN& gvn, Node* n1, uint opkind);
+  static Node* make(PhaseGVN& gvn, Node* n1, Node* n2, uint opkind);
+
+  private:
+    OpKind _mask_opcode;
+};
+
 #endif // SHARE_OPTO_INTRINSICNODE_HPP

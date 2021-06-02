@@ -202,6 +202,8 @@ public:
   // Expected use is for pointer vs oop determination for LoadP
   virtual bool        captures_bottom_type(FormDict& globals) const;
 
+  virtual bool        captures_meta_data(FormDict &globals) const;
+
   virtual const char *cost();      // Access ins_cost attribute
   virtual uint        num_opnds(); // Count of num_opnds for MachNode class
                                    // Counts USE_DEF opnds twice.  See also num_unique_opnds().

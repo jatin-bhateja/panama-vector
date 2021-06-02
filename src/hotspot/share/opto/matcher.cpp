@@ -33,6 +33,7 @@
 #include "opto/callnode.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/matcher.hpp"
+#include "opto/intrinsicnode.hpp"
 #include "opto/memnode.hpp"
 #include "opto/movenode.hpp"
 #include "opto/opcodes.hpp"
@@ -434,6 +435,24 @@ static RegMask *init_input_masks( uint size, RegMask &ret_adr, RegMask &fp ) {
   return rms;
 }
 
+const int Matcher::scalable_predicate_reg_slots() {
+  assert(Matcher::has_predicated_vectors() && Matcher::supports_scalable_vector(),
+        "scalable predicate vector should be supported");
+  int vector_reg_bit_size = Matcher::scalable_vector_reg_size(T_BYTE) << LogBitsPerByte;
+  // We assume each predicate register is one-eighth of the size of
+  // scalable vector register, one mask bit per vector byte.
+  int predicate_reg_bit_size = vector_reg_bit_size >> 3;
+  // Compute number of slots which is required when scalable predicate
+  // register is spilled. E.g. if scalable vector register is 640 bits,
+  // predicate register is 80 bits, which is 2.5 * slots.
+  // We will round up the slot number to power of 2, which is required
+  // by find_first_set().
+  int slots = predicate_reg_bit_size & (BitsPerInt - 1)
+              ? (predicate_reg_bit_size >> LogBitsPerInt) + 1
+              : predicate_reg_bit_size >> LogBitsPerInt;
+  return round_up_power_of_2(slots);
+}
+
 #define NOF_STACK_MASKS (3*13)
 
 // Create the initial stack mask used by values spilling to the stack.
@@ -542,6 +561,8 @@ void Matcher::init_first_stack_mask() {
   if (Matcher::has_predicated_vectors()) {
     *idealreg2spillmask[Op_RegVectMask] = *idealreg2regmask[Op_RegVectMask];
      idealreg2spillmask[Op_RegVectMask]->OR(aligned_stack_mask);
+  } else {
+    *idealreg2spillmask[Op_RegVectMask] = RegMask::Empty;
   }
 
   if (Matcher::vector_size_supported(T_BYTE,4)) {
@@ -614,6 +635,18 @@ void Matcher::init_first_stack_mask() {
   if (Matcher::supports_scalable_vector()) {
     int k = 1;
     OptoReg::Name in = OptoReg::add(_in_arg_limit, -1);
+    // Exclude last input arg stack slots to avoid spilling vector register there,
+    // otherwise RegVectMask spills could stomp over stack slots in caller frame.
+    for (; (in >= init_in) && (k < scalable_predicate_reg_slots()); k++) {
+      scalable_stack_mask.Remove(in);
+      in = OptoReg::add(in, -1);
+    }
+
+    // For RegVectMask
+    scalable_stack_mask.clear_to_sets(scalable_predicate_reg_slots());
+    assert(scalable_stack_mask.is_AllStack(), "should be infinite stack");
+    idealreg2spillmask[Op_RegVectMask]->OR(scalable_stack_mask);
+
     // Exclude last input arg stack slots to avoid spilling vector register there,
     // otherwise vector spills could stomp over stack slots in caller frame.
     for (; (in >= init_in) && (k < scalable_vector_reg_size(T_FLOAT)); k++) {
@@ -2327,6 +2360,49 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
       n->set_req(2, pair2);
       n->del_req(4);
       n->del_req(3);
+      break;
+    }
+    case Op_MaskOper: {
+      uint num_opnds = static_cast<MaskOperNode*>(n)->num_operands();
+      if(num_opnds == 1) {
+        assert(n->in(2) == C->top(), "");
+        n->del_req(2);
+      }
+      break;
+    }
+    case Op_VectorMaskOper: {
+      uint num_opnds = static_cast<VectorMaskOperNode*>(n)->num_operands();
+      switch(num_opnds) {
+        case 3:
+         {
+           Node* pair1 = new BinaryNode(n->in(1), n->in(2));
+           Node* pair2 = new BinaryNode(n->in(3), n->in(4));
+           n->set_req(1, pair1);
+           n->set_req(2, pair2);
+           n->del_req(3);
+           n->del_req(3);
+         }
+         break;
+        case 2:
+         {
+           assert(n->in(3) == C->top(), "");
+           Node* pair1 = new BinaryNode(n->in(1), n->in(2));
+           n->set_req(1, pair1);
+           n->set_req(2, n->in(4));
+           n->del_req(3);
+           n->del_req(3);
+         }
+         break;
+        case 1:
+         {
+           assert(n->in(2) == C->top(), "");
+           assert(n->in(3) == C->top(), "");
+           n->set_req(2, n->in(4));
+           n->del_req(3);
+           n->del_req(3);
+         }
+         break;
+      }
       break;
     }
     case Op_StoreVectorMasked: {

@@ -1029,6 +1029,7 @@ public:
   // Check if 'this' node dominates or equal to 'sub'.
   bool dominates(Node* sub, Node_List &nlist);
 
+  virtual const void* meta_data() const { return NULL; }
 protected:
   bool remove_dead_region(PhaseGVN *phase, bool can_reshape);
 public:

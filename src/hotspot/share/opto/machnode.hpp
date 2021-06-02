@@ -409,6 +409,17 @@ public:
 #endif
 };
 
+//------------------------------MachMetaDataNode----------------------------
+// Machine Nodes that need to retain a known Type and metadata.
+class MachMetaDataNode : public MachTypeNode {
+  virtual uint size_of() const { return sizeof(*this); } // Size is bigger
+public:
+  MachMetaDataNode( ) {}
+  const void *_meta_data;
+
+  const void *meta_data() const { return _meta_data; }
+};
+
 //------------------------------MachBreakpointNode----------------------------
 // Machine breakpoint or interrupt Node
 class MachBreakpointNode : public MachIdealNode {

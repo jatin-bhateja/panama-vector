@@ -12006,7 +12006,6 @@ instruct stringL_indexof_char(eDIRegP str1, eDXRegI cnt1, eAXRegI ch,
   ins_pipe( pipe_slow );
 %}
 
-
 // fast array equals
 instruct array_equalsB(eDIRegP ary1, eSIRegP ary2, eAXRegI result,
                        regD tmp1, regD tmp2, eCXRegI tmp3, eBXRegI tmp4, eFlagsReg cr)
