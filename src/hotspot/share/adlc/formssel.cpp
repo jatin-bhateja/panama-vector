@@ -761,6 +761,12 @@ int InstructForm::memory_operand(FormDict &globals) const {
   return NO_MEMORY_OPERAND;
 }
 
+bool InstructForm::captures_meta_data(FormDict &globals) const {
+  if (_matrule && _matrule->_rChild &&
+      (!strcmp(_matrule->_rChild->_opType,"VectorMaskOper"))) return true;
+  return  false;
+}
+
 // This instruction captures the machine-independent bottom_type
 // Expected use is for pointer vs oop determination for LoadP
 bool InstructForm::captures_bottom_type(FormDict &globals) const {
@@ -1169,6 +1175,9 @@ const char *InstructForm::mach_base_class(FormDict &globals)  const {
   }
   else if (is_mach_constant()) {
     return "MachConstantNode";
+  }
+  else if (captures_meta_data(globals)) {
+    return "MachMetaDataNode";
   }
   else if (captures_bottom_type(globals)) {
     return "MachTypeNode";
@@ -4199,8 +4208,8 @@ bool MatchRule::is_vector() const {
     "VectorRearrange","VectorLoadShuffle", "VectorLoadConst",
     "VectorCastB2X", "VectorCastS2X", "VectorCastI2X",
     "VectorCastL2X", "VectorCastF2X", "VectorCastD2X",
-    "VectorMaskWrapper", "VectorMaskCmp", "VectorReinterpret","LoadVectorMasked","StoreVectorMasked",
-    "FmaVD", "FmaVF","PopCountVI",
+    "VectorMaskWrapper", "VectorMaskCmp", "VectorReinterpret", "VectorMaskOper",
+    "LoadVectorMasked","StoreVectorMasked","FmaVD", "FmaVF","PopCountVI",
     // Next are not supported currently.
     "PackB","PackS","PackI","PackL","PackF","PackD","Pack2L","Pack2D",
     "ExtractB","ExtractUB","ExtractC","ExtractS","ExtractI","ExtractL","ExtractF","ExtractD",

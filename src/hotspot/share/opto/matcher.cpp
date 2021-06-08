@@ -33,6 +33,7 @@
 #include "opto/callnode.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/matcher.hpp"
+#include "opto/intrinsicnode.hpp"
 #include "opto/memnode.hpp"
 #include "opto/movenode.hpp"
 #include "opto/opcodes.hpp"
@@ -2359,6 +2360,49 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
       n->set_req(2, pair2);
       n->del_req(4);
       n->del_req(3);
+      break;
+    }
+    case Op_MaskOper: {
+      uint num_opnds = static_cast<MaskOperNode*>(n)->num_operands();
+      if(num_opnds == 1) {
+        assert(n->in(2) == C->top(), "");
+        n->del_req(2);
+      }
+      break;
+    }
+    case Op_VectorMaskOper: {
+      uint num_opnds = static_cast<VectorMaskOperNode*>(n)->num_operands();
+      switch(num_opnds) {
+        case 3:
+         {
+           Node* pair1 = new BinaryNode(n->in(1), n->in(2));
+           Node* pair2 = new BinaryNode(n->in(3), n->in(4));
+           n->set_req(1, pair1);
+           n->set_req(2, pair2);
+           n->del_req(3);
+           n->del_req(3);
+         }
+         break;
+        case 2:
+         {
+           assert(n->in(3) == C->top(), "");
+           Node* pair1 = new BinaryNode(n->in(1), n->in(2));
+           n->set_req(1, pair1);
+           n->set_req(2, n->in(4));
+           n->del_req(3);
+           n->del_req(3);
+         }
+         break;
+        case 1:
+         {
+           assert(n->in(2) == C->top(), "");
+           assert(n->in(3) == C->top(), "");
+           n->set_req(2, n->in(4));
+           n->del_req(3);
+           n->del_req(3);
+         }
+         break;
+      }
       break;
     }
     case Op_StoreVectorMasked: {

@@ -2411,9 +2411,15 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
 
     if (all_inputs_are_equiv_vboxes) {
+      // For targets which do not support predicated
+      // registers masks are propagated through vectors
+      // and are of same shape as the box vector type.
       VectorBoxNode* vbox = static_cast<VectorBoxNode*>(in(1));
+      const TypeVect* vt = in(1)->bottom_type()->isa_vectmask() ?
+                           in(1)->bottom_type()->is_vectmask()  :
+                           vbox->vec_type();
       PhiNode* new_vbox_phi = new PhiNode(r, vbox->box_type());
-      PhiNode* new_vect_phi = new PhiNode(r, vbox->vec_type());
+      PhiNode* new_vect_phi = new PhiNode(r, vt);
       for (uint i = 1; i < req(); ++i) {
         VectorBoxNode* old_vbox = static_cast<VectorBoxNode*>(in(i));
         new_vbox_phi->set_req(i, old_vbox->in(VectorBoxNode::Box));
@@ -2422,6 +2428,26 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       igvn->register_new_node_with_optimizer(new_vbox_phi, this);
       igvn->register_new_node_with_optimizer(new_vect_phi, this);
       progress = new VectorBoxNode(igvn->C, new_vbox_phi, new_vect_phi, vbox->box_type(), vbox->vec_type());
+    } else {
+      // Special case for targets which support predicated
+      // registers, a PhiNode with all its inputs as mask
+      // vector types should be replaced to have same type
+      // as its inputs.
+      bool all_inputs_are_equiv_mask_vectors = true;
+      for (unsigned i = 1; i < req() - 1 ; i++) {
+        if (in(i)->bottom_type()->isa_vectmask() == NULL ||
+            Type::cmp(in(i)->bottom_type(), in(i+1)->bottom_type()) != 0) {
+          all_inputs_are_equiv_mask_vectors = false;
+          break;
+        }
+      }
+      if (all_inputs_are_equiv_mask_vectors && bottom_type()->isa_vectmask() == NULL) {
+        Node* new_phi = new PhiNode(r, in(1)->bottom_type());
+        for (uint i = 1; i < req(); ++i) {
+          new_phi->set_req(i, in(i));
+        }
+        return new_phi;
+      }
     }
   }
 

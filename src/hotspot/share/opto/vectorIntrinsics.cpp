@@ -413,7 +413,9 @@ bool LibraryCallKit::inline_vector_nary_operation(int n) {
       return false;
      }
   } else {
-    const TypeVect* vt = TypeVect::make(elem_bt, num_elem);
+    const TypeVect* vt = is_vector_mask(vbox_klass) ?
+                       TypeVect::makemask(elem_bt, num_elem) :
+                       TypeVect::make(elem_bt, num_elem);
     switch (n) {
       case 1:
       case 2: {
@@ -528,7 +530,8 @@ bool LibraryCallKit::inline_vector_shuffle_iota() {
     ConINode* pred_node = (ConINode*)gvn().makecon(TypeInt::make(BoolTest::ge));
     Node * lane_cnt  = gvn().makecon(TypeInt::make(num_elem));
     Node * bcast_lane_cnt = gvn().transform(VectorNode::scalar2vector(lane_cnt, num_elem, type_bt));
-    Node* mask = gvn().transform(new VectorMaskCmpNode(BoolTest::ge, bcast_lane_cnt, res, pred_node, vt));
+    const TypeVect * mvt  = TypeVect::makemask(elem_bt, num_elem);
+    Node* mask = gvn().transform(new VectorMaskCmpNode(BoolTest::ge, bcast_lane_cnt, res, pred_node, mvt));
 
     // Make the indices greater than lane count as -ve values. This matches the java side implementation.
     res = gvn().transform(VectorNode::make(Op_AndI, res, bcast_mod, num_elem, elem_bt));
@@ -870,7 +873,7 @@ bool LibraryCallKit::inline_vector_mem_operation(bool is_store) {
       // Special handle for masks
       if (is_mask) {
         vload = gvn().transform(LoadVectorNode::make(0, control(), memory(addr), addr, addr_type, num_elem, T_BOOLEAN));
-        const TypeVect* to_vect_type = TypeVect::make(elem_bt, num_elem);
+        const TypeVect* to_vect_type = TypeVect::makemask(elem_bt, num_elem);
         vload = gvn().transform(new VectorLoadMaskNode(vload, to_vect_type));
       } else {
         vload = gvn().transform(LoadVectorNode::make(0, control(), memory(addr), addr, addr_type, num_elem, elem_bt));
@@ -1467,8 +1470,8 @@ bool LibraryCallKit::inline_vector_compare() {
   BoolTest::mask pred = (BoolTest::mask)cond->get_con();
   ConINode* pred_node = (ConINode*)gvn().makecon(cond);
 
-  const TypeVect* vt = TypeVect::make(mask_bt, num_elem);
-  Node* operation = gvn().transform(new VectorMaskCmpNode(pred, v1, v2, pred_node, vt));
+  const TypeVect* mvt = TypeVect::makemask(mask_bt, num_elem);
+  Node* operation = gvn().transform(new VectorMaskCmpNode(pred, v1, v2, pred_node, mvt));
 
   Node* box = box_vector(operation, mbox_type, mask_bt, num_elem);
   set_result(box);

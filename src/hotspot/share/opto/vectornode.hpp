@@ -66,7 +66,9 @@ class VectorNode : public TypeNode {
 
   virtual int Opcode() const;
 
-  virtual uint ideal_reg() const { return Matcher::vector_ideal_reg(vect_type()->length_in_bytes()); }
+  virtual uint ideal_reg() const {
+    return type()->ideal_reg();
+  }
 
   static VectorNode* scalar2vector(Node* s, uint vlen, const Type* opd_t);
   static VectorNode* shift_count(int opc, Node* cnt, uint vlen, BasicType bt);
@@ -76,6 +78,8 @@ class VectorNode : public TypeNode {
   static VectorNode* make(int vopc, Node* n1, Node* n2, Node* n3, const TypeVect* vt);
 
   static bool is_shift_opcode(int opc);
+  static bool is_vshift_cnt_opcode(int opc);
+  static bool is_maskable_operation(int opc, BasicType elemtype, uint& num_operands);
 
   static int  opcode(int opc, BasicType bt);
   static int replicate_opcode(BasicType bt);
@@ -90,6 +94,7 @@ class VectorNode : public TypeNode {
   static bool is_vector_rotate_supported(int vopc, uint vlen, BasicType bt);
   static bool is_invariant_vector(Node* n);
   static bool is_all_ones_vector(Node* n);
+  static bool is_all_zero_vector(Node* n);
   static bool is_vector_bitwise_not_pattern(Node* n);
   static Node* degenerate_vector_rotate(Node* n1, Node* n2, bool is_rotate_left, int vlen,
                                         BasicType bt, PhaseGVN* phase);
@@ -796,8 +801,8 @@ class StoreVectorNode : public StoreNode {
    }
    virtual int Opcode() const;
    virtual uint match_edge(uint idx) const { return idx == MemNode::Address ||
-                                                    idx == MemNode::ValueIn ||
-                                                    idx == MemNode::ValueIn + 1; }
+                                                     idx == MemNode::ValueIn ||
+                                                     idx == MemNode::ValueIn + 1; }
 };
 
 class StoreVectorMaskedNode : public StoreVectorNode {
@@ -1124,7 +1129,7 @@ class VectorMaskCmpNode : public VectorNode {
   BoolTest::mask _predicate;
 
  protected:
-  uint size_of() const { return sizeof(*this); }
+  virtual  uint  size_of() const { return sizeof(VectorMaskCmpNode); }
 
  public:
   VectorMaskCmpNode(BoolTest::mask predicate, Node* in1, Node* in2, ConINode* predicate_node, const TypeVect* vt) :
@@ -1136,6 +1141,7 @@ class VectorMaskCmpNode : public VectorNode {
            "VectorMaskCmp inputs must have same number of elements");
     assert((BoolTest::mask)predicate_node->get_int() == predicate, "Unmatched predicates");
     init_class_id(Class_VectorMaskCmp);
+    set_meta_data(vt);
   }
 
   virtual int Opcode() const;
@@ -1147,6 +1153,12 @@ class VectorMaskCmpNode : public VectorNode {
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
 #endif // !PRODUCT
+
+  const void* meta_data() const { return _meta_data; }
+  void set_meta_data(const void* data) { _meta_data = data; }
+
+  private:
+    const void* _meta_data;
 };
 
 // Used to wrap other vector nodes in order to add masking functionality.
@@ -1192,6 +1204,7 @@ class VectorBlendNode : public VectorNode {
   }
 
   virtual int Opcode() const;
+  Node* Ideal(PhaseGVN* phase, bool can_reshape);
   Node* vec1() const { return in(1); }
   Node* vec2() const { return in(2); }
   Node* vec_mask() const { return in(3); }
@@ -1422,6 +1435,29 @@ public:
 
   virtual int Opcode() const;
   Node* Ideal(PhaseGVN* phase, bool can_reshape);
+};
+
+class VectorMaskOperNode : public VectorNode {
+public:
+  VectorMaskOperNode(Node* in1, Node* in2, Node* in3, Node* mask,  const TypeVect* vt)
+  : VectorNode(in1, in2, in3, mask, vt) {}
+
+  virtual int Opcode() const;
+  virtual uint  size_of() const { return sizeof(VectorMaskOperNode); }
+
+  const void* meta_data() const { return _meta_data; }
+  void set_meta_data(const void* data) { _meta_data = data; }
+  Node* Ideal(PhaseGVN* phase, bool can_reshape);
+
+  uint num_operands() const {
+    uint num_opers = 0;
+    uint32_t masked_op = reinterpret_cast<jlong>(this->meta_data());
+    (void)VectorNode::is_maskable_operation(masked_op, bottom_type()->is_vect()->element_basic_type(), num_opers);
+    return num_opers;
+  }
+
+  private:
+    const void* _meta_data;
 };
 
 #endif // SHARE_OPTO_VECTORNODE_HPP
