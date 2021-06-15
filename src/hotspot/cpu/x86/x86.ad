@@ -3336,7 +3336,18 @@ instruct sqrtD_reg(regD dst) %{
   ins_pipe(pipe_slow);
 %}
 
+
 // ---------------------------------------- VectorReinterpret ------------------------------------
+instruct reinterpret_mask(kReg dst) %{
+  predicate(UseAVX > 2 && vector_length(n) == vector_length(n->in(1))); // dst == src
+  match(Set dst (VectorReinterpret dst));
+  ins_cost(125);
+  format %{ "vector_reinterpret $dst\t!" %}
+  ins_encode %{
+    // empty
+  %}
+  ins_pipe( pipe_slow );
+%}
 
 instruct reinterpret(vec dst) %{
   predicate(vector_length_in_bytes(n) == vector_length_in_bytes(n->in(1))); // dst == src
@@ -8430,6 +8441,17 @@ instruct mask_opers_evex(kReg dst, kReg src1, kReg src2, kReg kscratch) %{
     __ masked_op(this->ideal_Opcode(), btype(masklen), $dst$$KRegister, $src1$$KRegister, $src2$$KRegister);
   %}
   ins_pipe( pipe_slow );
+%}
+
+instruct castMM(kReg dst)
+%{
+  match(Set dst (CastVV dst));
+
+  size(0);
+  format %{ "# castVV of $dst" %}
+  ins_encode(/* empty encoding */);
+  ins_cost(0);
+  ins_pipe(empty);
 %}
 
 instruct castVV(vec dst)

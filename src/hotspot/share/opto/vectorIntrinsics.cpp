@@ -1870,7 +1870,9 @@ bool LibraryCallKit::inline_vector_convert() {
   }
 
   const TypeVect* src_type = TypeVect::make(elem_bt_from, num_elem_from);
-  const TypeVect* dst_type = TypeVect::make(elem_bt_to,   num_elem_to);
+  const TypeVect* dst_type = is_mask ?
+                             TypeVect::makemask(elem_bt_to,   num_elem_to) :
+                             TypeVect::make(elem_bt_to, num_elem_to);
 
   Node* op = opd1;
   if (is_cast) {
