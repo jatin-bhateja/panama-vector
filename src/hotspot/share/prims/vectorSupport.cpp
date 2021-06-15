@@ -32,6 +32,7 @@
 #include "oops/klass.inline.hpp"
 #include "prims/vectorSupport.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -40,6 +41,29 @@
 #ifdef COMPILER2
 #include "opto/matcher.hpp" // Matcher::max_vector_size(BasicType)
 #endif // COMPILER2
+
+#ifdef COMPILER2
+const char* VectorSupport::svmlname[VectorSupport::NUM_SVML_OP] = {
+    "tan",
+    "tanh",
+    "sin",
+    "sinh",
+    "cos",
+    "cosh",
+    "asin",
+    "acos",
+    "atan",
+    "atan2",
+    "cbrt",
+    "log",
+    "log10",
+    "log1p",
+    "pow",
+    "exp",
+    "expm1",
+    "hypot",
+};
+#endif
 
 bool VectorSupport::is_vector(Klass* klass) {
   return klass->is_subclass_of(vmClasses::vector_VectorPayload_klass());
@@ -99,14 +123,13 @@ jint VectorSupport::klass2length(InstanceKlass* ik) {
 //
 void VectorSupport::init_payload_element(typeArrayOop arr, BasicType elem_bt, int index, address addr) {
   switch (elem_bt) {
-    case T_BOOLEAN: arr->  byte_at_put(index,   *(jboolean*)addr); break;
-    case T_BYTE:   arr->  byte_at_put(index,   *(jbyte*)addr); break;
-    case T_SHORT:  arr-> short_at_put(index,  *(jshort*)addr); break;
-    case T_INT:    arr->   int_at_put(index,    *(jint*)addr); break;
-    case T_FLOAT:  arr-> float_at_put(index,  *(jfloat*)addr); break;
-    case T_LONG:   arr->  long_at_put(index,   *(jlong*)addr); break;
-    case T_DOUBLE: arr->double_at_put(index, *(jdouble*)addr); break;
-
+    case T_BOOLEAN: arr->bool_at_put(index, *(jboolean*)addr); break;
+    case T_BYTE:    arr->byte_at_put(index, *(jbyte*)addr); break;
+    case T_SHORT:   arr->short_at_put(index, *(jshort*)addr); break;
+    case T_INT:     arr->int_at_put(index, *(jint*)addr); break;
+    case T_FLOAT:   arr->float_at_put(index, *(jfloat*)addr); break;
+    case T_LONG:    arr->long_at_put(index, *(jlong*)addr); break;
+    case T_DOUBLE:  arr->double_at_put(index, *(jdouble*)addr); break;
     default: fatal("unsupported: %s", type2name(elem_bt));
   }
 }
@@ -349,6 +372,42 @@ int VectorSupport::vop2ideal(jint id, BasicType bt) {
         case T_INT:   return Op_URShiftI;
         case T_LONG:  return Op_URShiftL;
         default: fatal("URSHIFT: %s", type2name(bt));
+      }
+      break;
+    }
+    case VECTOR_OP_MASK_LASTTRUE: {
+      switch (bt) {
+        case T_BYTE:  // fall-through
+        case T_SHORT: // fall-through
+        case T_INT:   // fall-through
+        case T_LONG:  // fall-through
+        case T_FLOAT: // fall-through
+        case T_DOUBLE: return Op_VectorMaskLastTrue;
+        default: fatal("MASK_LASTTRUE: %s", type2name(bt));
+      }
+      break;
+    }
+    case VECTOR_OP_MASK_FIRSTTRUE: {
+      switch (bt) {
+        case T_BYTE:  // fall-through
+        case T_SHORT: // fall-through
+        case T_INT:   // fall-through
+        case T_LONG:  // fall-through
+        case T_FLOAT: // fall-through
+        case T_DOUBLE: return Op_VectorMaskFirstTrue;
+        default: fatal("MASK_FIRSTTRUE: %s", type2name(bt));
+      }
+      break;
+    }
+    case VECTOR_OP_MASK_TRUECOUNT: {
+      switch (bt) {
+        case T_BYTE:  // fall-through
+        case T_SHORT: // fall-through
+        case T_INT:   // fall-through
+        case T_LONG:  // fall-through
+        case T_FLOAT: // fall-through
+        case T_DOUBLE: return Op_VectorMaskTrueCount;
+        default: fatal("MASK_TRUECOUNT: %s", type2name(bt));
       }
       break;
     }
