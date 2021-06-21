@@ -80,6 +80,7 @@ class VectorNode : public TypeNode {
   static bool is_shift_opcode(int opc);
   static bool is_vshift_cnt_opcode(int opc);
   static bool is_maskable_operation(int opc, BasicType elemtype, uint& num_operands);
+  static bool is_vector_mask(Node* n);
 
   static int  opcode(int opc, BasicType bt);
   static int replicate_opcode(BasicType bt);
@@ -811,7 +812,7 @@ class StoreVectorMaskedNode : public StoreVectorNode {
  public:
   StoreVectorMaskedNode(Node* c, Node* mem, Node* dst, Node* src, const TypePtr* at, Node* mask)
    : StoreVectorNode(c, mem, dst, at, src) {
-    assert(mask->bottom_type()->is_vectmask(), "sanity");
+    assert(VectorNode::is_vector_mask(mask), "sanity");
     init_class_id(Class_StoreVector);
     set_mismatched_access();
     add_req(mask);
@@ -831,7 +832,7 @@ class LoadVectorMaskedNode : public LoadVectorNode {
  public:
   LoadVectorMaskedNode(Node* c, Node* mem, Node* src, const TypePtr* at, const TypeVect* vt, Node* mask)
    : LoadVectorNode(c, mem, src, at, vt) {
-    assert(mask->bottom_type()->is_vectmask(), "sanity");
+    assert(VectorNode::is_vector_mask(mask), "sanity");
     init_class_id(Class_LoadVector);
     set_mismatched_access();
     add_req(mask);
@@ -1465,6 +1466,7 @@ class VectorUnboxNode : public VectorNode {
   VectorUnboxNode(Compile* C, const TypeVect* vec_type, Node* obj, Node* mem, bool shuffle_to_vector)
     : VectorNode(mem, obj, vec_type) {
     _shuffle_to_vector = shuffle_to_vector;
+    init_class_id(Class_VectorUnbox);
     init_flags(Flag_is_macro);
     C->add_macro_node(this);
   }

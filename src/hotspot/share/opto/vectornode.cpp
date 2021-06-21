@@ -1298,6 +1298,19 @@ Node* RotateRightVNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   return NULL;
 }
 
+bool VectorNode::is_vector_mask(Node* n) {
+  if (n->bottom_type()->isa_vectmask()) {
+    return true;
+  }
+  if (n->Opcode() == Op_VectorUnbox) {
+    const TypeInstPtr* vector_klass_from = n->as_VectorUnbox()->obj()->bottom_type()->isa_instptr();
+    ciKlass* vbox_klass_from = vector_klass_from->klass();
+    return vbox_klass_from->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
+  }
+  return false;
+}
+
+
 #ifndef PRODUCT
 void VectorMaskCmpNode::dump_spec(outputStream *st) const {
   st->print(" %d #", _predicate); _type->dump_on(st);
