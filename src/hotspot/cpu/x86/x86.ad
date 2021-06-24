@@ -1843,6 +1843,7 @@ const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType 
 
 const bool Matcher::match_rule_supported_vector_masked(int opcode, int vlen, BasicType bt) {
   switch(opcode) {
+    case Op_LoadVectorMasked:
     case Op_StoreVectorMasked:
       return true;
     default:
