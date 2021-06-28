@@ -31,6 +31,24 @@
 #include "prims/vectorSupport.hpp"
 #include "runtime/stubRoutines.hpp"
 
+static bool is_vector_mask(ciKlass* klass) {
+  return klass->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
+}
+
+static bool is_vector_shuffle(ciKlass* klass) {
+  return klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
+}
+
+static bool is_klass_initialized(const TypeInstPtr* vec_klass) {
+  if (vec_klass->const_oop() == NULL) {
+    return false; // uninitialized or some kind of unsafe access
+  }
+  assert(vec_klass->const_oop()->as_instance()->java_lang_Class_klass() != NULL, "klass instance expected");
+  ciInstanceKlass* klass =  vec_klass->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
+  return klass->is_initialized();
+}
+
+
 #ifdef ASSERT
 static bool is_vector(ciKlass* klass) {
   return klass->is_subclass_of(ciEnv::current()->vector_VectorPayload_klass());
@@ -73,8 +91,7 @@ Node* GraphKit::box_vector(Node* vector, const TypeInstPtr* vbox_type, BasicType
   Node* ret = gvn().transform(new ProjNode(alloc, TypeFunc::Parms));
 
   assert(check_vbox(vbox_type), "");
-  const TypeVect* vt = TypeVect::make(elem_bt, num_elem);
-  VectorBoxNode* vbox = new VectorBoxNode(C, ret, vector, vbox_type, vt);
+  VectorBoxNode* vbox = new VectorBoxNode(C, ret, vector, vbox_type, vector->bottom_type()->is_vect());
   return gvn().transform(vbox);
 }
 
@@ -88,7 +105,9 @@ Node* GraphKit::unbox_vector(Node* v, const TypeInstPtr* vbox_type, BasicType el
     return NULL; // no nulls are allowed
   }
   assert(check_vbox(vbox_type), "");
-  const TypeVect* vt = TypeVect::make(elem_bt, num_elem);
+  bool is_masked = is_vector_mask(vbox_type_v->klass());
+  const TypeVect* vt = is_masked ? TypeVect::makemask(elem_bt, num_elem) :
+                                   TypeVect::make(elem_bt, num_elem);
   Node* unbox = gvn().transform(new VectorUnboxNode(C, vt, v, merged_memory(), shuffle_to_vector));
   return unbox;
 }
@@ -198,23 +217,6 @@ bool LibraryCallKit::arch_supports_vector(int sopc, int num_elem, BasicType type
   }
 
   return true;
-}
-
-static bool is_vector_mask(ciKlass* klass) {
-  return klass->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
-}
-
-static bool is_vector_shuffle(ciKlass* klass) {
-  return klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
-}
-
-static bool is_klass_initialized(const TypeInstPtr* vec_klass) {
-  if (vec_klass->const_oop() == NULL) {
-    return false; // uninitialized or some kind of unsafe access
-  }
-  assert(vec_klass->const_oop()->as_instance()->java_lang_Class_klass() != NULL, "klass instance expected");
-  ciInstanceKlass* klass =  vec_klass->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
-  return klass->is_initialized();
 }
 
 // public static
