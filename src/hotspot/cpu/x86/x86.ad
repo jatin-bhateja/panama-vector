@@ -1839,12 +1839,18 @@ const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType 
         return false;
       }
       break;
+    case Op_MaskAll:
+      if(!VM_Version::supports_avx512vlbw()) {
+        return false;
+      }
+      break;
   }
   return true;  // Per default match rules are supported.
 }
 
 const bool Matcher::match_rule_supported_vector_masked(int opcode, int vlen, BasicType bt) {
   switch(opcode) {
+    case Op_MaskAll:
     case Op_LoadVectorMasked:
     case Op_StoreVectorMasked:
     case Op_LoadVectorGatherMasked:
@@ -8385,6 +8391,30 @@ instruct vmask_first_or_last_true_avx(rRegI dst, vec mask, rRegL tmp, vec xtmp, 
 #endif // _LP64
 
 // ---------------------------------- Vector Masked Operations ------------------------------------
+instruct mask_all_evexI(kReg dst, rRegI src, vec xtmp) %{
+  match(Set dst (MaskAll src));
+  effect(TEMP xtmp);
+  format %{ "mask_all_evexI $dst, $src \t! mask all operation" %}
+  ins_encode %{
+    int vlen_enc = vector_length_encoding(vector_length(this));
+    __ evpbroadcastb($xtmp$$XMMRegister, $src$$Register, vlen_enc);
+    __ evpmovb2m($dst$$KRegister, $xtmp$$XMMRegister, vlen_enc);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+instruct mask_all_evexL(kReg dst, rRegL src, vec xtmp) %{
+  match(Set dst (MaskAll src));
+  effect(TEMP xtmp);
+  format %{ "mask_all_evexL $dst, $src \t! mask all operation" %}
+  ins_encode %{
+    int vlen_enc = vector_length_encoding(vector_length(this));
+    __ evpbroadcastb($xtmp$$XMMRegister, $src$$Register, vlen_enc);
+    __ evpmovb2m($dst$$KRegister, $xtmp$$XMMRegister, vlen_enc);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
 instruct vmasked_unaryop(vec dst, kReg mask) %{
   predicate(UseAVX > 2);
   match(Set dst (VectorMaskOper dst mask));
