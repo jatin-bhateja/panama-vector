@@ -1411,24 +1411,22 @@ Node* VectorInsertNode::make(Node* vec, Node* new_val, int position) {
 Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* n = obj()->uncast();
   if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
-    VectorBoxNode* vbox = static_cast<VectorBoxNode*>(n);
-    ciKlass* vbox_klass = vbox->box_type()->klass();
-    const TypeVect* in_vt = vbox->vec_type();
-    const TypeVect* out_vt = type()->is_vect();
-    Node* value = vbox->in(VectorBoxNode::Value);
-
-    bool is_vector_mask    = vbox_klass->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
-    bool is_vector_shuffle = vbox_klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
-    // TODO: maskAll() expands to -> Replicate + VectorBox
-    bool insert_loadmask   = is_vector_mask && Matcher::has_predicated_vectors();
-    if (!insert_loadmask && Type::cmp(bottom_type(), n->in(VectorBoxNode::Value)->bottom_type()) == 0) {
+    if (Type::cmp(bottom_type(), n->in(VectorBoxNode::Value)->bottom_type()) == 0) {
       // Handled by VectorUnboxNode::Identity()
     } else {
+      VectorBoxNode* vbox = static_cast<VectorBoxNode*>(n);
+      ciKlass* vbox_klass = vbox->box_type()->klass();
+      const TypeVect* in_vt = vbox->vec_type();
+      const TypeVect* out_vt = type()->is_vect();
+
       if (in_vt->length() == out_vt->length()) {
         Node* value = vbox->in(VectorBoxNode::Value);
+
+        bool is_vector_mask    = vbox_klass->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
+        bool is_vector_shuffle = vbox_klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
         if (is_vector_mask) {
           const TypeVect* vmask_type = TypeVect::makemask(out_vt->element_basic_type(), out_vt->length());
-          if (!insert_loadmask && in_vt->length_in_bytes() == out_vt->length_in_bytes() &&
+          if (in_vt->length_in_bytes() == out_vt->length_in_bytes() &&
               Matcher::match_rule_supported_vector(Op_VectorMaskCast, out_vt->length(), out_vt->element_basic_type())) {
             // Apply "VectorUnbox (VectorBox vmask) ==> VectorMaskCast (vmask)"
             // directly. This could avoid the transformation ordering issue from
@@ -1436,7 +1434,6 @@ Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
             return new VectorMaskCastNode(value, vmask_type);
           }
           // VectorUnbox (VectorBox vmask) ==> VectorLoadMask (VectorStoreMask vmask)
-          out_vt = TypeVect::makemask(out_vt->element_basic_type(), out_vt->length());
           value = phase->transform(VectorStoreMaskNode::make(*phase, value, in_vt->element_basic_type(), in_vt->length()));
           return new VectorLoadMaskNode(value, vmask_type);
         } else if (is_vector_shuffle) {

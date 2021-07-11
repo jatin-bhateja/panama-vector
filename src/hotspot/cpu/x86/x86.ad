@@ -7761,6 +7761,18 @@ instruct vstoreMask_evex(vec dst, kReg mask, immI size, rRegP scratch) %{
   ins_pipe( pipe_slow );
 %}
 
+instruct vmaskcast_evex(kReg dst) %{
+  predicate((vector_length(n) == vector_length(n->in(1))) &&
+            (vector_length_in_bytes(n) == vector_length_in_bytes(n->in(1))));
+  match(Set dst (VectorMaskCast dst));
+  ins_cost(0);
+  format %{ "vector_mask_cast $dst" %}
+  ins_encode %{
+    // empty
+  %}
+  ins_pipe(empty);
+%}
+
 instruct vmaskcast(vec dst) %{
   predicate((vector_length(n) == vector_length(n->in(1))) &&
             (vector_length_in_bytes(n) == vector_length_in_bytes(n->in(1))));
