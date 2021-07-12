@@ -1312,7 +1312,6 @@ class VectorMaskCmpNode : public VectorNode {
            "VectorMaskCmp inputs must have same number of elements");
     assert((BoolTest::mask)predicate_node->get_int() == predicate, "Unmatched predicates");
     init_class_id(Class_VectorMaskCmp);
-    set_meta_data(vt);
   }
 
   virtual int Opcode() const;
@@ -1324,12 +1323,6 @@ class VectorMaskCmpNode : public VectorNode {
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
 #endif // !PRODUCT
-
-  const void* meta_data() const { return _meta_data; }
-  void set_meta_data(const void* data) { _meta_data = data; }
-
-  private:
-    const void* _meta_data;
 };
 
 // Used to wrap other vector nodes in order to add masking functionality.

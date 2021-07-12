@@ -27,7 +27,6 @@
 #include "opto/mulnode.hpp"
 #include "opto/subnode.hpp"
 #include "opto/vectornode.hpp"
-#include "opto/intrinsicnode.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -1133,25 +1132,6 @@ Node* VectorLoadMaskNode::Identity(PhaseGVN* phase) {
     return in(1); // redundant conversion
   }
 
-  // Consider following snippet and its IR:-
-  //   VectorMask res = Mask1.and(Mask2);
-  //   return res.trueCount();
-  // Abstract level IR after parsing:
-  //   res = VectorBox (AndV (VectorLoadMask (VectorLoad Mask1))
-  //                         (VectorLoadMask (VectorLoad Mask2)));
-  //   return VectorTrueCount (VectorUnBox res);
-  // During Idealization of VectorUnbox node, Unbox + Box pattern is
-  // replaced by VectorStoreMask + VectorLoadMask pattern.
-  // In such case VectorStoreMask + VectorLoadMask is a redundant pattern
-  // iff original input to  VectorStoreMask is a node of type vectmask.
-
-  // VectorLoadMask(t1) (VectorStoreMask vectmask(t1)) => vectmask(t1)
-  if (in(1)->Opcode() == Op_VectorStoreMask &&
-      in(1)->in(1)->bottom_type()->isa_vectmask() &&
-      0 == Type::cmp(bottom_type(), in(1)->in(1)->bottom_type())) {
-    return in(1)->in(1);
-  }
-
   return this;
 }
 
@@ -1369,19 +1349,6 @@ Node* RotateRightVNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   return NULL;
 }
 
-bool VectorNode::is_vector_mask(Node* n) {
-  if (n->bottom_type()->isa_vectmask()) {
-    return true;
-  }
-  if (n->Opcode() == Op_VectorUnbox) {
-    const TypeInstPtr* vector_klass_from = n->as_VectorUnbox()->obj()->bottom_type()->isa_instptr();
-    ciKlass* vbox_klass_from = vector_klass_from->klass();
-    return vbox_klass_from->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
-  }
-  return false;
-}
-
-
 #ifndef PRODUCT
 void VectorMaskCmpNode::dump_spec(outputStream *st) const {
   st->print(" %d #", _predicate); _type->dump_on(st);
@@ -1508,6 +1475,7 @@ Node* VectorBlendNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 Node* VectorMaskOperNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   assert(in(4)->bottom_type()->isa_vectmask() != NULL, "Unexpected node");
 
+  // Transform to promote instruction selection with memory operand.
   int num_opers = num_operands();
   if (num_opers > 1 && in(num_opers)->Opcode() == Op_LoadVector) {
     Node* src1 = in(1);

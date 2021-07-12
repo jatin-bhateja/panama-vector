@@ -33,7 +33,6 @@
 #include "opto/callnode.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/matcher.hpp"
-#include "opto/intrinsicnode.hpp"
 #include "opto/memnode.hpp"
 #include "opto/movenode.hpp"
 #include "opto/opcodes.hpp"
@@ -2382,14 +2381,6 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
       n->set_req(2, pair2);
       n->del_req(4);
       n->del_req(3);
-      break;
-    }
-    case Op_MaskOper: {
-      uint num_opnds = static_cast<MaskOperNode*>(n)->num_operands();
-      if(num_opnds == 1) {
-        assert(n->in(2) == C->top(), "");
-        n->del_req(2);
-      }
       break;
     }
     case Op_VectorMaskOper: {

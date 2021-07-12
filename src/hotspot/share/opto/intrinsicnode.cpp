@@ -111,11 +111,3 @@ SignumDNode* SignumDNode::make(PhaseGVN& gvn, Node* in) {
 SignumFNode* SignumFNode::make(PhaseGVN& gvn, Node* in) {
   return new SignumFNode(in, gvn.makecon(TypeF::ZERO), gvn.makecon(TypeF::ONE));
 }
-
-Node* MaskOperNode::make(PhaseGVN& gvn, Node* n1, uint opr) {
-  return new MaskOperNode(n1, gvn.C->top(), (OpKind)opr);
-}
-
-Node* MaskOperNode::make(PhaseGVN& gvn, Node* n1, Node* n2, uint opr) {
-  return new MaskOperNode(n1, n2, (OpKind)opr);
-}
